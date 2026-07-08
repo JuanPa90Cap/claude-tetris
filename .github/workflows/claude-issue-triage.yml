@@ -1,0 +1,63 @@
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened, edited]
+
+concurrency:
+  group: claude-triage-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    if: github.event.sender.type != 'Bot' && !contains(github.event.issue.labels.*.name, 'no-triage')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Issue Triage
+        id: claude-triage
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Analiza el issue #${{ github.event.issue.number }} de este repositorio y haz un triaje automático.
+
+            Pasos:
+            1. Lee el issue con `gh issue view ${{ github.event.issue.number }} --json title,body,labels`.
+            2. Obtén los labels disponibles en el repo con `gh label list`.
+            3. Revisa el código del juego (game.js, index.html, style.css) según lo que describa el issue,
+               para entender la causa probable.
+            4. Elige únicamente entre los labels YA EXISTENTES en el repo (no crees labels nuevos) los que
+               mejor clasifiquen el issue (tipo: bug/enhancement/question/documentation; y si aplica,
+               prioridad o área). Aplícalos con `gh issue edit ${{ github.event.issue.number }} --add-label "..."`.
+               Si ninguno aplica con claridad, no fuerces labels.
+            5. Publica UN comentario de diagnóstico con
+               `gh issue comment ${{ github.event.issue.number }} --body-file <archivo>` (no edites el
+               cuerpo del issue), con esta estructura en español:
+
+               ## Diagnóstico automático
+
+               **Resumen del problema:** 1-2 frases.
+
+               **Causa probable / área afectada:** qué archivos o partes del juego están involucrados
+               (game.js, index.html, style.css) y por qué.
+
+               **Enfoque de solución propuesto:** pasos a alto nivel para implementar el fix o la feature.
+
+               **Complejidad estimada:** baja / media / alta.
+
+               ---
+               _Diagnóstico generado automáticamente por Claude. Requiere validación humana antes de
+               implementar la solución._
+
+            No hagas cambios de código ni abras un PR: esta tarea es solo de triaje y diagnóstico.
+          claude_args: |
+            --allowed-tools Bash(gh issue view:*),Bash(gh label list:*),Bash(gh issue edit:*),Bash(gh issue comment:*)
