@@ -1,16 +1,11 @@
-name: Claude Issue Triage
+name: Claude Issue Formatter
 
 on:
   issues:
     types: [opened, edited]
 
-concurrency:
-  group: claude-triage-${{ github.event.issue.number }}
-  cancel-in-progress: true
-
 jobs:
-  triage:
-    if: github.event.sender.type != 'Bot' && !contains(github.event.issue.labels.*.name, 'no-triage')
+  format-issue:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -22,42 +17,41 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Run Claude Issue Triage
-        id: claude-triage
+      - name: Format issue with Claude
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: "--allowedTools Bash(gh issue *)"
           prompt: |
-            Analiza el issue #${{ github.event.issue.number }} de este repositorio y haz un triaje automático.
+            You are a GitHub issue formatter for a Tetris game project (vanilla JS/HTML/CSS, no dependencies).
 
-            Pasos:
-            1. Lee el issue con `gh issue view ${{ github.event.issue.number }} --json title,body,labels`.
-            2. Obtén los labels disponibles en el repo con `gh label list`.
-            3. Revisa el código del juego (game.js, index.html, style.css) según lo que describa el issue,
-               para entender la causa probable.
-            4. Elige únicamente entre los labels YA EXISTENTES en el repo (no crees labels nuevos) los que
-               mejor clasifiquen el issue (tipo: bug/enhancement/question/documentation; y si aplica,
-               prioridad o área). Aplícalos con `gh issue edit ${{ github.event.issue.number }} --add-label "..."`.
-               Si ninguno aplica con claridad, no fuerces labels.
-            5. Publica UN comentario de diagnóstico con
-               `gh issue comment ${{ github.event.issue.number }} --body-file <archivo>` (no edites el
-               cuerpo del issue), con esta estructura en español:
+            An issue was just ${{ github.event.action }} with the following details:
+            - Issue number: #${{ github.event.issue.number }}
+            - Title: ${{ github.event.issue.title }}
+            - Body: ${{ github.event.issue.body }}
+            - Author: ${{ github.event.issue.user.login }}
 
-               ## Diagnóstico automático
+            Your tasks:
+            1. *Add labels* based on the issue content. Use only these labels:
+               - bug — something is broken or behaving incorrectly
+               - enhancement — new feature or improvement request
+               - question — asking for help or clarification
+               - documentation — docs need updating
+               - good first issue — simple, beginner-friendly task
+               - duplicate — if it seems like a known/repeated problem
 
-               **Resumen del problema:** 1-2 frases.
+            2. *Post a comment* on the issue that includes:
+               - A brief, friendly summary of what the issue is about (1-2 sentences)
+               - A "Formatted Report" section with:
+                 - *Type*: Bug / Feature Request / Question / Other
+                 - *Summary*: one clear sentence describing the problem or request
+                 - *Steps to reproduce* (for bugs): list them if not provided, ask the user to provide them if it's a bug
+                 - *Expected behavior* (for bugs): what should happen
+                 - *Suggested labels*: the labels you applied and why
+               - A closing note thanking the contributor
 
-               **Causa probable / área afectada:** qué archivos o partes del juego están involucrados
-               (game.js, index.html, style.css) y por qué.
+            Use the gh CLI to apply labels and post the comment. Example commands:
+              gh issue edit ${{ github.event.issue.number }} --add-label "bug" --repo ${{ github.repository }}
+              gh issue comment ${{ github.event.issue.number }} --body "..." --repo ${{ github.repository }}
 
-               **Enfoque de solución propuesto:** pasos a alto nivel para implementar el fix o la feature.
-
-               **Complejidad estimada:** baja / media / alta.
-
-               ---
-               _Diagnóstico generado automáticamente por Claude. Requiere validación humana antes de
-               implementar la solución._
-
-            No hagas cambios de código ni abras un PR: esta tarea es solo de triaje y diagnóstico.
-          claude_args: |
-            --allowed-tools Bash(gh issue view:*),Bash(gh label list:*),Bash(gh issue edit:*),Bash(gh issue comment:*)
+            Be concise, helpful, and friendly. Do not over-engineer the response.
