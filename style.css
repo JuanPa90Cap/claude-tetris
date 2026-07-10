@@ -160,3 +160,21 @@ kbd {
 #restart-btn:hover {
   background: #9bbdff;
 }
+
+/* ==== skins ==== */
+.skin-select {
+  background: #1a1a25;
+  color: #e0e0e0;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.skin-select:hover,
+.skin-select:focus {
+  border-color: #7aa2f7;
+  outline: none;
+}
