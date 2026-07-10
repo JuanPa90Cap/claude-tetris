@@ -48,7 +48,31 @@
       <div class="overlay-box">
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
+        <table id="hs-table" class="hs-table"></table>
+        <div id="hs-save-row" class="hidden">
+          <input id="hs-name-input" type="text" maxlength="10" placeholder="Nombre" />
+          <button id="hs-save-btn">Guardar</button>
+        </div>
         <button id="restart-btn">Reiniciar</button>
+      </div>
+    </div>
+
+    <div id="hs-start-screen" class="overlay">
+      <div class="overlay-box">
+        <p class="hs-heading">TETRIS</p>
+        <div class="hs-stats">
+          <div>
+            <span class="label">MEJOR COMBO</span>
+            <span class="value" id="hs-best-combo">0</span>
+          </div>
+          <div>
+            <span class="label">MÁS LÍNEAS</span>
+            <span class="value" id="hs-max-lines">0</span>
+          </div>
+        </div>
+        <table id="hs-start-table" class="hs-table"></table>
+        <button id="hs-start-btn">Jugar</button>
+        <button id="hs-reset-btn">Reset records</button>
       </div>
     </div>
   </div>
