@@ -69,6 +69,10 @@ const PIECES = [
 
 const LINE_SCORES = [0, 100, 300, 500, 800];
 
+const HS_KEY = 'tetris.highscores';
+const HS_RECORDS_KEY = 'tetris.records';
+const HS_MAX_ENTRIES = 5;
+
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const nextCanvas = document.getElementById('next-canvas');
@@ -88,7 +92,21 @@ const menuControlsBtn = document.getElementById('menu-controls-btn');
 const menuControlsList = document.getElementById('menu-controls-list');
 const menuStartLevelInput = document.getElementById('menu-start-level');
 
-let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+const hsStartScreen = document.getElementById('hs-start-screen');
+const hsStartTable = document.getElementById('hs-start-table');
+const hsStartBtn = document.getElementById('hs-start-btn');
+const hsResetBtn = document.getElementById('hs-reset-btn');
+const hsBestComboEl = document.getElementById('hs-best-combo');
+const hsMaxLinesEl = document.getElementById('hs-max-lines');
+const hsTable = document.getElementById('hs-table');
+const hsSaveRow = document.getElementById('hs-save-row');
+const hsNameInput = document.getElementById('hs-name-input');
+const hsSaveBtn = document.getElementById('hs-save-btn');
+
+let board, current, next, score, lines, level, paused, lastTime, dropAccum, dropInterval, animId, combo;
+let gameOver = true; // true until init() runs, so keydown input is ignored while the start screen is showing
+let hsRecords = loadRecords();
+let hsPendingScore = null;
 
 function loadSkin() {
   try {
@@ -198,6 +216,7 @@ function clearLines() {
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
     updateHUD();
   }
+  return cleared;
 }
 
 function ghostY() {
@@ -225,7 +244,16 @@ function softDrop() {
 
 function lockPiece() {
   merge();
-  clearLines();
+  const cleared = clearLines();
+  let recordsChanged = false;
+  if (cleared > 0) {
+    combo++;
+    if (combo > hsRecords.bestCombo) { hsRecords.bestCombo = combo; recordsChanged = true; }
+  } else {
+    combo = 0;
+  }
+  if (cleared > hsRecords.maxLines) { hsRecords.maxLines = cleared; recordsChanged = true; }
+  if (recordsChanged) { saveRecords(hsRecords); renderRecords(); }
   spawn();
 }
 
@@ -263,6 +291,98 @@ function drawCheckerPattern(context, x, y, s) {
   context.fillStyle = 'rgba(255,255,255,0.08)';
   context.fillRect(x + half, y, s - half, half);
   context.fillRect(x, y + half, half, s - half);
+}
+
+function loadHighScores() {
+  try {
+    const raw = localStorage.getItem(HS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(e => e && typeof e.name === 'string' && typeof e.score === 'number');
+  } catch {
+    return [];
+  }
+}
+
+function saveHighScores(list) {
+  try {
+    localStorage.setItem(HS_KEY, JSON.stringify(list));
+  } catch {
+    // storage unavailable (private mode, file://, quota) — ignore
+  }
+}
+
+function loadRecords() {
+  try {
+    const raw = localStorage.getItem(HS_RECORDS_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return {
+      bestCombo: typeof parsed.bestCombo === 'number' ? parsed.bestCombo : 0,
+      maxLines: typeof parsed.maxLines === 'number' ? parsed.maxLines : 0,
+    };
+  } catch {
+    return { bestCombo: 0, maxLines: 0 };
+  }
+}
+
+function saveRecords(records) {
+  try {
+    localStorage.setItem(HS_RECORDS_KEY, JSON.stringify(records));
+  } catch {
+    // storage unavailable — ignore
+  }
+}
+
+function qualifiesForHighScore(s) {
+  const list = loadHighScores();
+  if (list.length < HS_MAX_ENTRIES) return true;
+  return s > list[list.length - 1].score;
+}
+
+function addHighScore(name, s) {
+  const list = loadHighScores();
+  list.push({ name, score: s });
+  list.sort((a, b) => b.score - a.score);
+  const trimmed = list.slice(0, HS_MAX_ENTRIES);
+  saveHighScores(trimmed);
+  return trimmed;
+}
+
+function renderHighScoreTable(tableEl, highlightIndex) {
+  if (!tableEl) return;
+  const list = loadHighScores();
+  tableEl.innerHTML = '';
+  if (list.length === 0) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = 2;
+    cell.textContent = 'Sin puntuaciones';
+    row.appendChild(cell);
+    tableEl.appendChild(row);
+    return;
+  }
+  list.forEach((entry, i) => {
+    const row = document.createElement('tr');
+    if (i === highlightIndex) row.classList.add('hs-highlight');
+    const nameCell = document.createElement('td');
+    nameCell.textContent = entry.name;
+    const scoreCell = document.createElement('td');
+    scoreCell.textContent = entry.score.toLocaleString();
+    row.appendChild(nameCell);
+    row.appendChild(scoreCell);
+    tableEl.appendChild(row);
+  });
+}
+
+function renderRecords() {
+  if (hsBestComboEl) hsBestComboEl.textContent = hsRecords.bestCombo;
+  if (hsMaxLinesEl) hsMaxLinesEl.textContent = hsRecords.maxLines;
+}
+
+function renderHSDisplays(highlightIndex) {
+  renderHighScoreTable(hsStartTable, -1);
+  renderHighScoreTable(hsTable, highlightIndex ?? -1);
+  renderRecords();
 }
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
@@ -370,6 +490,18 @@ function endGame() {
   overlayTitle.textContent = 'GAME OVER';
   overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
   overlay.classList.remove('hidden');
+
+  if (qualifiesForHighScore(score)) {
+    hsPendingScore = score;
+    hsNameInput.value = '';
+    hsSaveRow.classList.remove('hidden');
+    renderHighScoreTable(hsTable, -1);
+    hsNameInput.focus();
+  } else {
+    hsPendingScore = null;
+    hsSaveRow.classList.add('hidden');
+    renderHighScoreTable(hsTable, -1);
+  }
 }
 
 function togglePause() {
@@ -409,6 +541,7 @@ function init() {
   level = startLevel;
   paused = false;
   gameOver = false;
+  combo = 0;
   dropInterval = Math.max(100, 1000 - (level - 1) * 90);
   dropAccum = 0;
   lastTime = performance.now();
@@ -476,4 +609,27 @@ menuStartLevelInput.addEventListener('change', () => {
   saveStartLevel(value);
 });
 
-init();
+hsStartBtn.addEventListener('click', () => {
+  hsStartScreen.classList.add('hidden');
+  init();
+});
+
+hsSaveBtn.addEventListener('click', () => {
+  if (hsPendingScore == null) return;
+  const name = (hsNameInput.value || '').trim().slice(0, 10) || 'AAA';
+  const list = addHighScore(name, hsPendingScore);
+  const idx = list.findIndex(e => e.name === name && e.score === hsPendingScore);
+  renderHighScoreTable(hsTable, idx);
+  renderHighScoreTable(hsStartTable, -1);
+  hsSaveRow.classList.add('hidden');
+  hsPendingScore = null;
+});
+
+hsResetBtn.addEventListener('click', () => {
+  try { localStorage.removeItem(HS_KEY); } catch {}
+  try { localStorage.removeItem(HS_RECORDS_KEY); } catch {}
+  hsRecords = loadRecords();
+  renderHSDisplays();
+});
+
+renderHSDisplays();
