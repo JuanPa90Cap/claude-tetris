@@ -31,6 +31,16 @@
           <canvas id="next-canvas" width="120" height="120"></canvas>
         </div>
 
+        <div class="panel-section skin-section">
+          <span class="label">SKIN</span>
+          <select id="skin-select" class="skin-select">
+            <option value="retro">Retro</option>
+            <option value="neon">Neon</option>
+            <option value="pastel">Pastel</option>
+            <option value="pixel">Pixel Art</option>
+          </select>
+        </div>
+
         <div class="panel-section controls">
           <span class="label">CONTROLS</span>
           <ul>
@@ -48,7 +58,53 @@
       <div class="overlay-box">
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
+        <table id="hs-table" class="hs-table"></table>
+        <div id="hs-save-row" class="hidden">
+          <input id="hs-name-input" type="text" maxlength="10" placeholder="Nombre" />
+          <button id="hs-save-btn">Guardar</button>
+        </div>
         <button id="restart-btn">Reiniciar</button>
+      </div>
+    </div>
+
+    <div id="menu-overlay" class="overlay hidden">
+      <div class="menu-box">
+        <p class="menu-title">PAUSA</p>
+        <div class="menu-options">
+          <button id="menu-resume-btn">Reanudar</button>
+          <button id="menu-restart-btn">Reiniciar</button>
+          <button id="menu-controls-btn">Ver controles</button>
+        </div>
+        <ul id="menu-controls-list" class="menu-controls-list hidden">
+          <li><kbd>←</kbd><kbd>→</kbd> mover</li>
+          <li><kbd>↑</kbd> / <kbd>X</kbd> rotar</li>
+          <li><kbd>↓</kbd> bajar</li>
+          <li><kbd>Space</kbd> caída</li>
+          <li><kbd>P</kbd> / <kbd>Esc</kbd> pausa</li>
+        </ul>
+        <div class="menu-level-row">
+          <label for="menu-start-level">Nivel inicial</label>
+          <input id="menu-start-level" type="number" min="1" max="15" step="1" />
+        </div>
+      </div>
+    </div>
+
+    <div id="hs-start-screen" class="overlay">
+      <div class="overlay-box">
+        <p class="hs-heading">TETRIS</p>
+        <div class="hs-stats">
+          <div>
+            <span class="label">MEJOR COMBO</span>
+            <span class="value" id="hs-best-combo">0</span>
+          </div>
+          <div>
+            <span class="label">MÁS LÍNEAS</span>
+            <span class="value" id="hs-max-lines">0</span>
+          </div>
+        </div>
+        <table id="hs-start-table" class="hs-table"></table>
+        <button id="hs-start-btn">Jugar</button>
+        <button id="hs-reset-btn">Reset records</button>
       </div>
     </div>
   </div>
